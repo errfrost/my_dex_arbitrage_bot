@@ -1,5 +1,7 @@
 .App {
-  text-align: center;
+  padding: 10px;
+  text-align: left;
+  background-color: #999999;
 }
 
 .App-logo {
@@ -35,4 +37,8 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+form {
+  padding: 10px;
 }
