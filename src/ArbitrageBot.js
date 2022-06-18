@@ -215,11 +215,11 @@ const ArbitrageBot = () => {
       inTrade = true;
       console.log('> Making dualTrade...');
       //uncomment code below to make real trade
-      const tx = await contract.dualDexTrade(router1, router2, baseToken, token2, amount,
-                                                {gasPrice: fee, gasLimit: 1000000});
+//      const tx = await contract.dualDexTrade(router1, router2, baseToken, token2, amount,
+//                                                {gasPrice: fee, gasLimit: 1000000});
 //                                              {gasPrice: ethers.utils.parseUnits('130', 'gwei'), gasLimit: 1000000});
-      console.log(tx);
-      await tx.wait();
+//      console.log(tx);
+//      await tx.wait();
       inTrade = false;
 
       console.log('amount = ' + amount.toString());
