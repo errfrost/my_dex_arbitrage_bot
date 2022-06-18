@@ -11,6 +11,7 @@ const ArbitrageBot = () => {
   const [walletBalance, setWalletBalance] = useState(0);
   const [contractBalance, setContractBalance] = useState(0);
   const [fee, setFee] = useState(0);
+  const [swapDetails, setSwapDetails] = useState(null);
 
   const config = require('./fantom.json');
   const walletConfig = require('./wallet.json');
@@ -113,7 +114,7 @@ const ArbitrageBot = () => {
       return;
     }
 
-    console.log('Searching Opportunities');
+    //console.log('Searching Opportunities');
 
     //chosing the routes and tokens to trade
     const targetRoute = {};
@@ -175,6 +176,8 @@ const ArbitrageBot = () => {
 
       let profit =  (amtBack-tradeSize)/Math.pow(10, decimalsMainToken);
 //      let profit =  ethers.utils.formatUnits(amtBack, decimalsMainToken) - ethers.utils.formatUnits(tradeSize, decimalsMainToken);
+      setSwapDetails(config.tokens[currentToken].sym + '(' + config.routers[currentRouter1].dex
+                                      + '-' + config.routers[currentRouter2].dex + ') ' + profit + ' ' + stableCoin);
       let profitString = '';
       if (profit > 0) {
         let tempFee = await provider.getFeeData();
@@ -295,7 +298,7 @@ const ArbitrageBot = () => {
 
       Arbitrage
       <form onSubmit={lookForDualTrade}>
-        <button type='submit'>Search for Arbitrage Opportunities</button>
+        <button type='submit'>Search for Arbitrage Opportunities</button> {swapDetails}
       </form>
       <form onSubmit={stopTrade}>
         <button type='submit'>Stop</button>
