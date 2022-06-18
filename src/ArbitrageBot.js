@@ -182,23 +182,28 @@ const ArbitrageBot = () => {
       if (profit > 0) {
         let tempFee = await provider.getFeeData();
         tempFee = tempFee.gasPrice;
-        let tempFee2 = ethers.utils.formatUnits(tempFee, config.decimals-9);
         setFee(tempFee);
+        let tempFee2 = ethers.utils.formatUnits(tempFee, config.decimals-9);
+        let gasPrice = ethers.utils.formatUnits(tempFee, config.decimals) * 280000;
 
-        profitString = '----->   PROFIT!' + '   Gas Price = ' + tempFee2 + ' gwei';
-      }
-      console.log('Trade log: ' + config.tokens[currentToken].sym + '(' + config.routers[currentRouter1].dex
-                              + '-' + config.routers[currentRouter2].dex + ') ' + profit + '$' + profitString);
-      let gasPrice = ethers.utils.formatUnits(fee, config.decimals) * 280000;
+        profitString = '----->   PROFIT!' + '   Gas Price = ' + tempFee2 + ' gwei' + ' -> ' + gasPrice;
 
-//      if (amtBack.gt(profitTarget)) {
-//      if (profit > config.gasPrice) {
-//      if (profit > 0) {
-      if (gasPrice < profit) {
-        await dualTrade(targetRoute.router1, targetRoute.router2, targetRoute.token1, targetRoute.token2, tradeSize);
+        console.log('Trade log: ' + config.tokens[currentToken].sym + '(' + config.routers[currentRouter1].dex
+                                + '-' + config.routers[currentRouter2].dex + ') ' + profit + ' ' + stableCoin + profitString);
+
+//        if (amtBack.gt(profitTarget))
+//        if (profit > config.gasPrice)
+//        if (profit > 0)
+        if (gasPrice < profit) {
+          await dualTrade(targetRoute.router1, targetRoute.router2, targetRoute.token1, targetRoute.token2, tradeSize);
+        } else {
+          await lookForDualTrade(null);
+        }
+
       } else {
         await lookForDualTrade(null);
       }
+
     } catch (error) {
       await lookForDualTrade(null);
     }
