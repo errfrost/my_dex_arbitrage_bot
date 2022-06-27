@@ -1,23 +1,18 @@
-import {React, useState, useEffect} from 'react';
+import {React, useState} from 'react';
 import {ethers} from 'ethers';
 import abi from './ArbitrageBot.json';
 
 const ArbitrageBot = () => {
   const [provider, setProvider] = useState(null);
-	const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
-  const [contract2, setContract2] = useState(null);
   const [wallet, setWallet] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
-  const [contractBalance, setContractBalance] = useState(0);
-  const [fee, setFee] = useState(0);
   const [swapDetails, setSwapDetails] = useState(null);
 
   const config = require('./fantom.json');
   const walletConfig = require('./wallet.json');
   const ERC20ABI = require('./ERC20.json');
 
-  const myWalletAddress = walletConfig.walletAddress;
   const chainToken = config.chainToken;
   const stableCoin = config.baseAssets[0].sym;
   const botContractAddress = config.arbContract;//trading bot smart contract address
@@ -58,15 +53,11 @@ const ArbitrageBot = () => {
 
     console.log('Connected wallet: ' + tempWallet.address);
 
-    let tempSigner = tempWallet.provider.getSigner(tempWallet.address);
-    setSigner(tempSigner);
-
     //connecting to our ArbitrageBot smart contract
+    //let signer = tempWallet.provider.getSigner(tempWallet.address);
     //for correct working we need to sign transaction with the wallet object, not the signer
     let tempContract = new ethers.Contract(config.arbContract, abi.abi, tempWallet);
     setContract(tempContract);
-    let tempContract2 = new ethers.Contract(config.arbContract, abi.abi, provider);
-    setContract2(tempContract2);
   }
 
   //get balance of tokenAddress in contract wallet
@@ -85,11 +76,10 @@ const ArbitrageBot = () => {
     decimalsMainToken = await newContract.decimals();
     console.log(stableCoin + ' decimals = ' + decimalsMainToken);
 
-    let tempFee = await provider.getFeeData();
-    tempFee = tempFee.gasPrice;
-    let tempFee2 = ethers.utils.formatUnits(tempFee, config.decimals-9);
-    setFee(tempFee);
-    console.log('Gas Price = ' + tempFee + ' _ ' + tempFee2); // по идее decimalsMainToken тут должен быть того токена. который используется для газа
+    let currentGasPrice = await provider.getFeeData();
+    currentGasPrice = currentGasPrice.gasPrice;
+    let currentGasPriceInGwei = ethers.utils.formatUnits(currentGasPrice, config.decimals-9);
+    console.log('Gas Price = ' + currentGasPrice + ' _ ' + currentGasPriceInGwei); // по идее decimalsMainToken тут должен быть того токена. который используется для газа
 
     console.log(stableCoin + ' Tokens in wallet: ' + ethers.utils.formatUnits(walletBalanceTradingToken, decimalsMainToken));
     console.log(stableCoin + ' Tokens in contract: ' + ethers.utils.formatUnits(botBalanceTradingToken, decimalsMainToken));
@@ -104,17 +94,14 @@ const ArbitrageBot = () => {
     console.log(chainToken + ' balance in wallet: ' + balanceWallet);
     console.log(chainToken + ' balance in contract: ' + balanceContract);
     setWalletBalance(balanceWallet);
-    setContractBalance(balanceContract);
   }
 
   const lookForDualTrade = async (e) => {
     if (e != null) e.preventDefault();
-    if (stopT == true) {
+    if (stopT === true) {
       stopT = false;
       return;
     }
-
-    //console.log('Searching Opportunities');
 
     //chosing the routes and tokens to trade
     const targetRoute = {};
@@ -142,7 +129,7 @@ const ArbitrageBot = () => {
     if (currentRouter1 >= config.routers.length) {
       currentRouter1 = 0;
     }
-    if (currentRouter2 == currentRouter1) {
+    if (currentRouter2 === currentRouter1) {
       currentRouter2 += 1;
     }
     if (currentRouter2 >= config.routers.length) {
@@ -157,45 +144,33 @@ const ArbitrageBot = () => {
 
     try {
       let tradeSize = await getTokenBalance(targetRoute.token1);
-      if (tradeSize == 0) {
+      if (tradeSize === 0) {
           console.log('Insufficient funds to trade');
           return;
       }
 
       const amtBack = await contract.estimateDualDexTrade(targetRoute.router1, targetRoute.router2, targetRoute.token1, targetRoute.token2, tradeSize);
 
-      const multiplier = ethers.BigNumber.from(config.minBasisPointsPerTrade+10000);
-      const sizeMultiplied = tradeSize.mul(multiplier);
-      const divider = ethers.BigNumber.from(10000);
-      const profitTarget = sizeMultiplied.div(divider);
-
-      //need to use correct decimals
-      const newContract = new ethers.Contract(targetRoute.token2, ERC20ABI, provider);
-      let currentTokenDecimals = await newContract.decimals();
-//      console.log(config.tokens[currentToken].sym + ' decimals = ' + currentTokenDecimals);
-
       let profit =  (amtBack-tradeSize)/Math.pow(10, decimalsMainToken);
-//      let profit =  ethers.utils.formatUnits(amtBack, decimalsMainToken) - ethers.utils.formatUnits(tradeSize, decimalsMainToken);
       setSwapDetails(config.tokens[currentToken].sym + '(' + config.routers[currentRouter1].dex
                                       + '-' + config.routers[currentRouter2].dex + ') ' + profit + ' ' + stableCoin);
       let profitString = '';
       if (profit > 0) {
-        let tempFee = await provider.getFeeData();
-        tempFee = tempFee.gasPrice;
-        setFee(tempFee);
-        let tempFee2 = ethers.utils.formatUnits(tempFee, config.decimals-9);
-        let gasPrice = ethers.utils.formatUnits(tempFee, config.decimals) * 280000;
+        let currentGasPrice = await provider.getFeeData();
+        currentGasPrice = currentGasPrice.gasPrice;
+        let currentGasPriceInGwei = ethers.utils.formatUnits(currentGasPrice, config.decimals-9);
+        let transactionFee = ethers.utils.formatUnits(currentGasPrice, config.decimals) * 280000;
 
-        profitString = '----->   PROFIT!' + '   Gas Price = ' + tempFee2 + ' gwei' + ' -> ' + gasPrice;
+        profitString = '----->   PROFIT!   Gas Price = ' + currentGasPriceInGwei + ' gwei -> ' + transactionFee;
 
-        console.log('Trade log: ' + config.tokens[currentToken].sym + '(' + config.routers[currentRouter1].dex
+        const current = new Date();
+        const date = `${current.getHours()}:${current.getMinutes()}:${current.getSeconds()}`;
+
+        console.log(date + ' Trade log: ' + config.tokens[currentToken].sym + '(' + config.routers[currentRouter1].dex
                                 + '-' + config.routers[currentRouter2].dex + ') ' + profit + ' ' + stableCoin + profitString);
 
-//        if (amtBack.gt(profitTarget))
-//        if (profit > config.gasPrice)
-//        if (profit > 0)
-        if (gasPrice < profit) {
-          await dualTrade(targetRoute.router1, targetRoute.router2, targetRoute.token1, targetRoute.token2, tradeSize);
+        if ((profit-transactionFee>=0.01) && (currentGasPriceInGwei < 100)) {
+          await dualTrade(targetRoute.router1, targetRoute.router2, targetRoute.token1, targetRoute.token2, tradeSize, currentGasPriceInGwei);
         } else {
           await lookForDualTrade(null);
         }
@@ -210,7 +185,7 @@ const ArbitrageBot = () => {
 
   }
 
-  const dualTrade = async (router1, router2, baseToken, token2, amount) => {
+  const dualTrade = async (router1, router2, baseToken, token2, amount, gas) => {
     if (inTrade === true) {
       await lookForDualTrade(null);
       return false;
@@ -220,11 +195,12 @@ const ArbitrageBot = () => {
       inTrade = true;
       console.log('> Making dualTrade...');
       //uncomment code below to make real trade
-//      const tx = await contract.dualDexTrade(router1, router2, baseToken, token2, amount,
-//                                                {gasPrice: fee, gasLimit: 1000000});
-//                                              {gasPrice: ethers.utils.parseUnits('130', 'gwei'), gasLimit: 1000000});
-//      console.log(tx);
-//      await tx.wait();
+      //const tx = await contract.dualDexTrade(router1, router2, baseToken, token2, amount,
+      //                                        {gasPrice: ethers.utils.parseUnits(gas, 'gwei'), gasLimit: 280000});
+      //console.log(tx);
+      //await tx.wait();
+      console.log('> Successeful transaction');
+      //console.log(tx);
       inTrade = false;
 
       console.log('amount = ' + amount.toString());
@@ -239,7 +215,6 @@ const ArbitrageBot = () => {
 
       await lookForDualTrade(null);
     } catch (error) {
-      //console.log(e);
       inTrade = false;
       await lookForDualTrade(null);
     }
