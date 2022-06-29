@@ -8,6 +8,17 @@ const ArbitrageBot = () => {
   const [wallet, setWallet] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [swapDetails, setSwapDetails] = useState(null);
+  const [stopBot, setStopBot] = useState(false);
+
+  console.log('rerender ' + stopBot);
+
+  let inTrade = false;
+  let currentRoute = 0;
+  let currentRouter1 = 0;
+  let currentRouter2 = 1;
+  let currentToken = 0;
+//  let stopT = false;
+  let decimalsMainToken = 18;
 
   const config = require('./fantom.json');
   const walletConfig = require('./wallet.json');
@@ -17,14 +28,6 @@ const ArbitrageBot = () => {
   const stableCoin = config.baseAssets[0].sym;
   const botContractAddress = config.arbContract;//trading bot smart contract address
   const usdtTokenAddress = config.baseAssets[0].address;//bsc testnet busd address //0x4988a896b1227218e4A686fdE5EabdcAbd91571f';
-
-  let inTrade = false;
-  let currentRoute = 0;
-  let currentRouter1 = 0;
-  let currentRouter2 = 1;
-  let currentToken = 0;
-  let stopT = false;
-  let decimalsMainToken = 18;
 
   const updateEthers = (e) => {
     e.preventDefault();
@@ -98,8 +101,9 @@ const ArbitrageBot = () => {
 
   const lookForDualTrade = async (e) => {
     if (e != null) e.preventDefault();
-    if (stopT === true) {
-      stopT = false;
+    console.log(stopBot);
+    if (stopBot === true) {
+      //setStopBot(false);
       return;
     }
 
@@ -195,12 +199,12 @@ const ArbitrageBot = () => {
       inTrade = true;
       console.log('> Making dualTrade...');
       //uncomment code below to make real trade
-      //const tx = await contract.dualDexTrade(router1, router2, baseToken, token2, amount,
-      //                                        {gasPrice: ethers.utils.parseUnits(gas, 'gwei'), gasLimit: 280000});
-      //console.log(tx);
-      //await tx.wait();
+      const tx = await contract.dualDexTrade(router1, router2, baseToken, token2, amount,
+                                              {gasPrice: ethers.utils.parseUnits(gas, 'gwei'), gasLimit: 280000});
+      console.log(tx);
+      let receipt = await tx.wait();
       console.log('> Successeful transaction');
-      //console.log(tx);
+      console.log('Result - > ' + receipt);
       inTrade = false;
 
       console.log('amount = ' + amount.toString());
@@ -211,10 +215,15 @@ const ArbitrageBot = () => {
       console.log(' ');
 
       //comment code below to loop trade process
-      stopT = true;
+      setStopBot(true);
 
       await lookForDualTrade(null);
     } catch (error) {
+      console.log('catch error - begin');
+      console.log(error.transaction);
+      console.log(error.transactionHash);
+      console.log(error.receipt);
+      console.log('catch error - end');
       inTrade = false;
       await lookForDualTrade(null);
     }
@@ -222,8 +231,8 @@ const ArbitrageBot = () => {
 
   const stopTrade = async (e) => {
     e.preventDefault();
-    stopT = true;
-    console.log('-------STOP-------' + stopT);
+    setStopBot(true);
+    console.log('-------STOP-------' + stopBot);
   }
 
   const recoverGas = async (e) => {
